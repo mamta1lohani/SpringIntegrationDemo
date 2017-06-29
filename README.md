@@ -18,7 +18,6 @@ The application to automatically process these files by polling that folder for 
 * spring integration framework org.springframework.boot spring-boot-starter-integration
 * org.springframework.boot spring-boot-starter-thymeleaf
 * org.springframework.integration spring-integration-file
-* spring framework 4.1.4.RELEASE
 * junit 4.12
 
 
