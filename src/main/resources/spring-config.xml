@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-file="http://www.springframework.org/schema/integration/file"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/integration
+    http://www.springframework.org/schema/integration/spring-integration.xsd
+    http://www.springframework.org/schema/integration/file
+    http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+    http://www.springframework.org/schema/context 
+    http://www.springframework.org/schema/context/spring-context.xsd">
+	<!-- -->
+
+	<context:property-placeholder location="application.properties" />
+
+	<!-- <int:service-activator input-channel="filesInChannel" output-channel="filesOutChannel"> 
+		<bean id="pollableFileSource" class="org.springframework.integration.file.FileReadingMessageSource" 
+		p:filter-ref="txtFileFilter" p:directory="${input_dir}" /> p:filter-ref="txtFileFilter" 
+		p:inputDirectory="${input_dir}" /> </int:service-activator> -->
+
+	<!-- will fetch file every 5s -->
+	<int-file:inbound-channel-adapter id="filesInChannel"
+		directory="${input_dir}" filter="txtFileFilter" auto-startup="true"
+		auto-create-directory="true">
+		<int:poller id="poller" default="true" fixed-delay="5000" />
+		<!-- task-executor="executor" -->
+	</int-file:inbound-channel-adapter>
+	<bean id="txtFileFilter"
+		class="org.springframework.integration.file.config.FileListFilterFactoryBean"
+		p:filenamePattern="*.txt" />
+	<bean id="txtFileFilter1"
+		class="org.springframework.integration.file.filters.CompositeFileListFilter">
+		<constructor-arg>
+			<list>
+				<bean
+					class="org.springframework.integration.file.filters.AcceptOnceFileListFilter" />
+				<bean
+					class="org.springframework.integration.file.filters.RegexPatternFileListFilter">
+					<constructor-arg value="^*.txt$" />
+				</bean>
+				<bean
+					class="org.springframework.integration.file.config.FileListFilterFactoryBean"
+					p:filenamePattern="*.txt" />
+			</list>
+		</constructor-arg>
+	</bean>
+
+	<int-file:file-to-string-transformer
+		input-channel="filesInChannel" output-channel="filesOutChannel"
+		charset="UTF-8" />
+	<int:channel id="filesInChannel" />
+
+
+	<int:router input-channel="filesOutChannel" id="validator"
+		ref="fileValidator" method="validateFile" />
+	<bean id="fileValidator"
+		class="aero.sita.springIntegration.task.numberFileReaderService.InputFileValidator">
+	</bean>
+	<int-file:outbound-gateway id="mover"
+		request-channel="validFileChannel" 
+		filename-generator="processedFileNameGenerator" directory="${processed_dir}"
+		delete-source-files="false" /><!-- reply-channel="moveInput" -->
+	<bean id="processedFileNameGenerator"
+		class="aero.sita.springIntegration.task.numberFileReaderService.ProcessedFileNameGenerator">
+		<property name="extension" value="PROCESSED" />
+	</bean>
+
+	<int:service-activator input-channel="validFileChannel"
+		ref="processFile" method="calculateTotal" output-channel="saveOutput" />
+	<bean id="processFile"
+		class="aero.sita.springIntegration.task.numberFileReaderService.ProcessFile" />
+
+	<!-- <int:publish-subscribe-channel id="saveOutput"/> -->
+
+	<int-file:outbound-channel-adapter
+		id="saveOutput" directory="${output_dir}" auto-create-directory="true"
+		filename-generator="outFileNameGenerator" delete-source-files="true" />
+	<bean id="outFileNameGenerator"
+		class="aero.sita.springIntegration.task.numberFileReaderService.ProcessedFileNameGenerator">
+		<property name="extension" value="OUTPUT" />
+	</bean>
+
+
+	<int-file:outbound-channel-adapter
+		id="invalidFileChannel" directory="${error_dir}"
+		auto-create-directory="true" filename-generator="errFileNameGenerator"
+		delete-source-files="true" />
+	<bean id="errFileNameGenerator"
+		class="aero.sita.springIntegration.task.numberFileReaderService.ProcessedFileNameGenerator">
+		<property name="extension" value="ERROR" />
+	</bean>
+	<!-- <task:executor id="executor" pool-size="10" /> -->
+</beans>
