@@ -33,11 +33,9 @@ public class ScheduledTasks {
 		try {
 			log.info("The time is now {}", dateFormat.format(new Date()));
 			log.debug("Loaded logging configurations");
-
 			ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(configFile);
 			log.debug("Loaded spring context.");
 		} catch (BeansException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
